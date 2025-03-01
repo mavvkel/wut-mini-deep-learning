@@ -8,6 +8,7 @@ Python 3.13
 
 ### Download dataset
 
-```$bash
-$ python scrips/download_dataset.py
+```bash
+$ cd Project1
+$ . scrips/download_dataset.sh
 ```
