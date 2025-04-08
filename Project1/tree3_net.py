@@ -33,7 +33,7 @@ class TreeLayer(nn.Module):
         return w_times_x
 
 
-class Model(nn.Module):
+class Tree3(nn.Module):
     def __init__(self):
         super().__init__()
 
