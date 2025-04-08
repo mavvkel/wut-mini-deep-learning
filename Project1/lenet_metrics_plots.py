@@ -135,7 +135,7 @@ for i in range(3):
 
     print(f"\nFinal Test Loss: {test_loss:.4f}, Final Test Acc: {test_acc:.2f}%\n")
 
-log_dirs = [f"logs_lenet_best/run_{i}" for i in range(3)]
+log_dirs = [f"runs/logs_lenet_best/run_{i}" for i in range(3)]
 labels = ['Run 1', 'Run 2', 'Run 3']
 colors = ['forestgreen', 'seagreen', 'mediumseagreen']  
 
@@ -231,7 +231,7 @@ for aug_name, transform_train in augmentations.items():
     }
     print(f"\nTraining with augmentations: {aug_name}\n")
 
-    log_dir = f'logs_augs_final/{aug_name}'
+    log_dir = f'runs/logs_augs_final/{aug_name}'
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     writer = SummaryWriter(log_dir=log_dir)
@@ -324,7 +324,7 @@ import os
 import matplotlib.pyplot as plt
 from tensorboard.backend.event_processing import event_accumulator
 
-log_dir = "logs_aug"
+log_dir = "runs/logs_aug"
 val_acc_logs = {}
 val_loss_logs = {}
 
@@ -777,7 +777,7 @@ plt.show()
 import numpy as np
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
-log_dirs = [f"logs_lenet_best/run_{i}" for i in range(3)]
+log_dirs = [f"runs/logs_lenet_best/run_{i}" for i in range(3)]
 val_accuracies_last_epoch = []
 
 def extract_scalars(log_dir, tag):
