@@ -10,7 +10,7 @@ Team members: Michał Kuśmierzak, Katarzyna Leniec
     2. Silence removal & padding to uniform length
     3. Resampling data to 8000Hz
 3. Problem description in report
-4. Dataset & preprocessing description in report.
+4. Dataset & preprocessing description in report
 5. Architecture selection
 6. Parameter scope selection (initial)
 
