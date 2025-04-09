@@ -11,7 +11,10 @@ Team members: Michał Kuśmierzak, Katarzyna Leniec
     3. Resampling data to 8000Hz
 3. Problem description in report
 4. Dataset & preprocessing description in report
-5. Architecture selection
+5. Architecture selection:
+    * transformer proposed [here](https://arxiv.org/abs/2104.01778)
+    * transformer combined with cnn proposed [here](https://www.sciencedirect.com/science/article/pii/S0957417424009850#b2)
+    * ResNet18
 6. Parameter scope selection (initial)
 
 ## Week 14-20.04.2025:
