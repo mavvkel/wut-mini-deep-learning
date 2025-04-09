@@ -175,3 +175,23 @@ mise.toml
 
 # Downloaded dataset
 dataset/
+
+# Some Michał's garbage from Project 1
+Project1/README.txt
+Project1/Tree3.ipynb
+Project1/chcks.zip
+Project1/chcks_e100_bs32_wd0005_m96_t.zip
+Project1/chcks_e100_bs32_wd0005_m96_t2.zip
+Project1/cinic10.zip
+Project1/dataset.zip
+Project1/e100_bs32_wd0005_m96_t1.zip
+Project1/e100_bs32_wd0005_m96_t2.zip
+Project1/lenet_checkpoints/
+Project1/ncomms13276.pdf
+Project1/runs.zip
+Project1/test_accs.txt
+Untitled.ipynb
+t.py
+test.py
+tgpu.py
+
