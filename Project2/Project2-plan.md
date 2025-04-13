@@ -4,14 +4,14 @@ Team members: Michał Kuśmierzak, Katarzyna Leniec
 
 ## Week 7-13.04.2025:
 
-1. Dataset exploration
-2. Data preprocessing with procedure outlined [here](https://www.kaggle.com/code/davids1992/speech-representation-and-data-exploration/notebook#1.4.-Silence-removal)
-    1. Splitting to train, validation & testing subsets
-    2. Silence removal & padding to uniform length
-    3. Resampling data to 8000Hz
+1. ✅ Dataset exploration
+2. ✅ Data preprocessing with procedure outlined [here](https://www.kaggle.com/code/davids1992/speech-representation-and-data-exploration/notebook#1.4.-Silence-removal)
+    1. ✅ Splitting to train, validation & testing subsets
+    2. ✅ Silence removal & padding to uniform length
+    3. ✅ Resampling data to 8000Hz
 3. Problem description in report
 4. Dataset & preprocessing description in report
-5. Architecture selection:
+5. ✅ Architecture selection:
     * transformer proposed [here](https://arxiv.org/abs/2104.01778)
     * transformer combined with cnn proposed [here](https://www.sciencedirect.com/science/article/pii/S0957417424009850#b2)
     * ResNet18
