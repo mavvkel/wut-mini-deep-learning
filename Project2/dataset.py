@@ -59,9 +59,9 @@ class AudioFolder(Dataset):
     Args:
         path (str): Path to the directory where the dataset is found or downloaded.
         suffix (str) : Audio file type, defaulted to ".WAV".
-        pattern (str) : Find pathnames matching this pattern. Defaulted to "*/*" 
+        pattern (str) : Find pathnames matching this pattern. Defaulted to "*/*"
         new_sample_rate (int) : Resample audio to new sample rate specified.
-        spectrogram_transform (bool): If `True` transform the audio waveform and returns it  
+        spectrogram_transform (bool): If `True` transform the audio waveform and returns it
         transformed into a spectrogram tensor.
     """
 
