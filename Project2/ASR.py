@@ -8,9 +8,9 @@ class CNNBlock(nn.Module):
         self.norm1d = nn.BatchNorm1d(output_channels)
         self.gelu = nn.GELU()
         self.dropout = nn.Dropout(p=0.1)
-    
+
     def forward(self, x):
-        x = self.conv1d(x)  
+        x = self.conv1d(x)
         x = self.norm1d(x)
         x = self.gelu(x)
         x = self.dropout(x)
@@ -40,25 +40,25 @@ class DenseBlock(nn.Module):
 class TransformerBlock(nn.Module):
     def __init__(self, num_classes=23, input_dim=128, nhead=8, hidden_dim=1024):
         super(TransformerBlock, self).__init__()
-        
+
         self.encoder_layer = TransformerEncoderLayer(d_model=input_dim, nhead=nhead, dim_feedforward=hidden_dim)
         self.transformer_encoder = TransformerEncoder(self.encoder_layer, num_layers=3)
-        
+
         self.decoder_layer = TransformerDecoderLayer(d_model=input_dim, nhead=nhead, dim_feedforward=hidden_dim)
         self.transformer_decoder = TransformerDecoder(self.decoder_layer, num_layers=3)
-        
+
         self.layer_norm = nn.LayerNorm(input_dim)
-        
+
         self.final_fc = nn.Linear(input_dim, num_classes)
-        
+
     def forward(self, memory, target):
-        memory = self.transformer_encoder(memory)  
+        memory = self.transformer_encoder(memory)
         output = self.transformer_decoder(target, memory)
-        
+
         output = self.layer_norm(output)
-        
+
         output = self.final_fc(output)
-        
+
         return output
 
 class ASRModel(nn.Module):
@@ -72,9 +72,9 @@ class ASRModel(nn.Module):
         self.transformer_block = TransformerBlock(num_classes, input_dim=128, nhead=8, hidden_dim=1024)
     def forward(self, x):
         x = x.squeeze(1)
-        x = x.permute(0, 2, 1)  
-        x = self.cnn_block(x)  
-        x = x.permute(2, 0, 1)  
+        x = x.permute(0, 2, 1)
+        x = self.cnn_block(x)
+        x = x.permute(2, 0, 1)
         x = self.dense_block(x)
         output = self.transformer_block(x, x)
         return output[-1]

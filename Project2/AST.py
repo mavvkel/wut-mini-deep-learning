@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-from timm.models.layers import to_2tuple, trunc_normal_
+from timm.layers.helpers import to_2tuple
+from timm.layers.weight_init import trunc_normal_
 
 class PatchEmbed(nn.Module):
     def __init__(self, img_size=(201, 41), patch_size=16, stride=None, in_chans=1, embed_dim=768):
@@ -16,17 +17,17 @@ class PatchEmbed(nn.Module):
         self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=stride)
 
     def forward(self, x):
-        x = self.proj(x).flatten(2).transpose(1, 2)  
+        x = self.proj(x).flatten(2).transpose(1, 2)
         return x
 
 class ASTModel(nn.Module):
     def __init__(
-        self, 
-        label_dim=22,             
-        fstride=10, 
-        tstride=10, 
-        input_fdim=201, 
-        input_tdim=41,            
+        self,
+        label_dim=22,
+        fstride=10,
+        tstride=10,
+        input_fdim=201,
+        input_tdim=41,
         model_size='base384'
     ):
         super(ASTModel, self).__init__()
@@ -75,16 +76,16 @@ class ASTModel(nn.Module):
         self.head = nn.Linear(self.embed_dim, label_dim)
 
     def forward(self, x):
-        x = x.unsqueeze(1).transpose(2, 3)  
-        x = self.patch_embed(x)           
+        x = x.unsqueeze(1).transpose(2, 3)
+        x = self.patch_embed(x)
         B, N, D = x.size()
 
-        cls_tokens = self.cls_token.expand(B, -1, -1)  
-        x = torch.cat((cls_tokens, x), dim=1)         
+        cls_tokens = self.cls_token.expand(B, -1, -1)
+        x = torch.cat((cls_tokens, x), dim=1)
         x = x + self.pos_embed[:, :x.size(1), :]
         x = self.pos_drop(x)
 
         x = self.transformer_encoder(x)
         x = self.norm(x)
-        x = self.head(x[:, 0])  
+        x = self.head(x[:, 0])
         return x
