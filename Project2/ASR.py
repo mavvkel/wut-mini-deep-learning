@@ -38,7 +38,7 @@ class DenseBlock(nn.Module):
         return x
 
 class TransformerBlock(nn.Module):
-    def __init__(self, num_classes=22, input_dim=128, nhead=8, hidden_dim=1024):
+    def __init__(self, num_classes=23, input_dim=128, nhead=8, hidden_dim=1024):
         super(TransformerBlock, self).__init__()
         
         self.encoder_layer = TransformerEncoderLayer(d_model=input_dim, nhead=nhead, dim_feedforward=hidden_dim)
@@ -62,7 +62,7 @@ class TransformerBlock(nn.Module):
         return output
 
 class ASRModel(nn.Module):
-    def __init__(self, num_classes=22):
+    def __init__(self, num_classes=23):
         super(ASRModel, self).__init__()
 
         self.cnn_block = CNNBlock(input_channels=41, output_channels=128)
