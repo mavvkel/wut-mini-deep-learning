@@ -16,6 +16,7 @@ from dataset import CLASS_NAMES_TO_IXS, get_dataloaders
 from resnet18 import ResNet, resnet18
 
 
+NUM_CLASSES = len(set(CLASS_NAMES_TO_IXS.values()))
 EARLY_STOPING_PATIENCE = 5
 EARLY_STOPING_DELTA = 0.00001
 LR_PATIENCE = 3
@@ -132,15 +133,17 @@ def run_training_session(
 
         val_accuracy = correct / total
 
-        av_epoch_train_loss = epoch_train_loss / total
-        av_epoch_valid_loss = epoch_valid_loss / total
+        av_train_loss = epoch_train_loss / total
+        av_valid_loss = epoch_valid_loss / total
 
         epochs_ran += 1
 
-        print('Epoch {}: Train accuracy {:.6f}, Val accuracy {:.6f}, Train loss {:.8f}, Val loss {:.8f}'.format(epoch, train_accuracy, val_accuracy, av_epoch_train_loss, av_epoch_valid_loss))
+        print(f"Epoch {epoch}:")
+        print(f"\tTrain: acc={train_accuracy:.6f}, loss={av_train_loss:.8f}")
+        print(f"\tVal: acc={val_accuracy:.6f}, loss={av_valid_loss:.8f}")
 
-        writer.add_scalar("Loss/train", av_epoch_train_loss, epoch + 1)
-        writer.add_scalar("Loss/valid", av_epoch_valid_loss, epoch + 1)
+        writer.add_scalar("Loss/train", av_train_loss, epoch + 1)
+        writer.add_scalar("Loss/valid", av_valid_loss, epoch + 1)
 
         writer.add_scalar("Accuracy/train", train_accuracy, epoch + 1)
         writer.add_scalar("Accuracy/valid", val_accuracy, epoch + 1)
@@ -148,7 +151,7 @@ def run_training_session(
         writer.add_scalar("Learning rate", scheduler.get_last_lr()[-1], epoch)
 
         # Check early stopping condition
-        early_stopping.check_early_stop(av_epoch_valid_loss)
+        early_stopping.check_early_stop(av_valid_loss)
 
         if early_stopping.stop_training:
             print(f"Early stopping at epoch {epoch}")
@@ -158,17 +161,17 @@ def run_training_session(
                 torch.save(model.state_dict(), checkpoint_dir + f"epochs_{epoch+1}.pt")
             break
 
-        scheduler.step(av_epoch_valid_loss)
+        scheduler.step(av_valid_loss)
 
     writer.flush()
 
     print(f"Training for {epochs_ran} epochs took {datetime.now() - st}")
 
     # Evaluate metrics on test set
+    model = model.eval()
+
     total = 0
     correct = 0
-
-    model = model.eval()
 
     for _, (waveforms, labels, _) in enumerate(testloader):
         waveforms = waveforms.to(device)
@@ -182,7 +185,9 @@ def run_training_session(
             total += labels.size(0)
 
     test_accuracy = float(correct) / total
-    print('Test accuracy {}'.format(test_accuracy))
+
+    print(f"Test evaluation")
+    print(f"\tAccuracy={test_accuracy:.6f}")
 
     with open(f"./{model.__class__.__name__}_test_metrics.txt", "a+") as f:
         f.write(f"ACC={test_accuracy}, OPT={optimizer.__class__.__name__}, BATCH={batch_size}, RUN={run_number}, LR_FACTOR={learning_rate_factor}\n")
@@ -190,12 +195,12 @@ def run_training_session(
 
 if __name__ == '__main__':
 
-    num_classes = len(set(CLASS_NAMES_TO_IXS.values()))
-    model = resnet18(num_classes=num_classes, in_channels=1)
-    #model = ASRModel(num_classes=num_classes)
-    #model = ASTModel(label_dim=num_classes, model_size='tiny224')
+    model = resnet18(num_classes=NUM_CLASSES, in_channels=1)
+    #model = ASRModel(num_classes=NUM_CLASSES)
+    #model = ASTModel(label_dim=NUM_CLASSES, model_size='tiny224')
 
     optimizer = optim.Adam(params=model.parameters())
+    optimizer = optim.RMSprop(params=model.parameters())
 
     run_training_session(
         model=model,
