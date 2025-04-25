@@ -31,8 +31,7 @@ def run_training_session(
     print(f"Running config:")
     print(f"\tmodel={model.__class__.__name__}")
     print(f"\toptimizer={optimizer.__class__.__name__}")
-    print(f"\tbatch_size={optimizer.param_groups}")
-    print(f"\toptimizer_params={optimizer.param_groups}")
+    print(f"\tbatch_size={batch_size}")
     print(f"\trun_number={run_number}")
     print(f"\tlearning_rate_factor={learning_rate_factor}")
 
