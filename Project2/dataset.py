@@ -11,39 +11,39 @@ import torchaudio
 # Adapted from https://github.com/pytorch/audio/pull/1215/files#diff-7c4812ed050b7ad76d3982a5e36ff87469be8d5cc6b38a6fe3be2cd6793f2aee
 #
 
-UNKNOWN_CLASS_IX = 22
+UNKNOWN_CLASS_IX = 21
 
 CLASS_NAMES_TO_IXS = {
     "bed": UNKNOWN_CLASS_IX,
     "bird": UNKNOWN_CLASS_IX,
     "cat": UNKNOWN_CLASS_IX,
     "dog": UNKNOWN_CLASS_IX,
-    "down": 1,
-    "eight": 2,
-    "five": 3,
-    "four": 4,
-    "go": 5,
+    "down": 0,
+    "eight": 1,
+    "five": 2,
+    "four": 3,
+    "go": 4,
     "happy": UNKNOWN_CLASS_IX,
     "house": UNKNOWN_CLASS_IX,
-    "left": 6,
+    "left": 5,
     "marvin": UNKNOWN_CLASS_IX,
-    "nine": 7,
-    "no": 8,
-    "off": 9,
-    "on": 10,
-    "one": 11,
-    "right": 12,
-    "seven": 13,
+    "nine": 6,
+    "no": 7,
+    "off": 8,
+    "on": 9,
+    "one": 10,
+    "right": 11,
+    "seven": 12,
     "sheila": UNKNOWN_CLASS_IX,
-    "six": 14,
-    "stop": 15,
-    "three": 16,
-    "tree": 17,
-    "two": 18,
-    "up": 19,
+    "six": 13,
+    "stop": 14,
+    "three": 15,
+    "tree": 16,
+    "two": 17,
+    "up": 18,
     "wow": UNKNOWN_CLASS_IX,
-    "yes": 20,
-    "zero": 21,
+    "yes": 19,
+    "zero": 20,
 }
 
 def load_audio_item(filepath: str, path: str) -> Tuple[Tensor, int, str, str]:
@@ -96,7 +96,7 @@ class AudioFolder(Dataset):
             waveform = torchaudio.transforms.Resample(sample_rate, self._new_sample_rate)(waveform)
             sample_rate = self._new_sample_rate
         if self._spectrogram_transform is not None:
-                       waveform = torchaudio.transforms.Spectrogram()(waveform)
+            waveform = torchaudio.transforms.Spectrogram()(waveform)
 
         return waveform, sample_rate, CLASS_NAMES_TO_IXS[label], filename
 
@@ -105,20 +105,20 @@ class AudioFolder(Dataset):
 
 
 def collate_fn(data):
-    """
-       data: is a list of tuples with (waveform, sample_rate, label, filename)
-    """
+    _, sample_rates, labels, _ = zip(*data)
 
-    waveforms, sample_rates, labels, _ = zip(*data)
-    max_len = max(waveforms, key=lambda x: x.shape[2]).shape[2]
-    n_ftrs = data[0][0].size(1)
+    max_len = max([x[0].shape[2] for x in data])
+    n_ftrs = data[0][0].shape[1]
 
-    features = torch.zeros((len(data), n_ftrs, max_len))
+    features = torch.zeros((len(data), 1, n_ftrs, max_len))
+
     labels = torch.tensor(labels)
 
     for i in range(len(data)):
-        l, k = data[i][0].size(2), data[i][0].size(1)
-        features[i] = torch.cat([data[i][0], torch.zeros((1, k, max_len - l))], dim=2)
+        orig = data[i][0]
+        l = orig.shape[2]
+
+        features[i, :, :, :l] = orig
 
     return features.float(), labels.long(), sample_rates
 

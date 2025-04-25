@@ -1,0 +1,207 @@
+import os
+from datetime import datetime
+from tqdm import tqdm
+import torch
+import torch.nn as nn
+from early_stop import EarlyStopping
+
+from torch.utils.tensorboard.writer import SummaryWriter
+import torch.optim as optim
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torcheval.metrics.functional import multiclass_accuracy, multiclass_f1_score, multiclass_auroc
+
+from ASR import ASRModel
+from AST import ASTModel
+from dataset import CLASS_NAMES_TO_IXS, get_dataloaders
+from resnet18 import ResNet, resnet18
+
+
+EARLY_STOPING_PATIENCE = 5
+EARLY_STOPING_DELTA = 0.00001
+LR_PATIENCE = 3
+
+
+def run_training_session(
+    model: ResNet | ASTModel | ASRModel,
+    optimizer,
+    batch_size: int,
+    run_number: int,
+    learning_rate_factor: float,
+):
+    print(f"Running config:")
+    print(f"\tmodel={model.__class__.__name__}")
+    print(f"\toptimizer={optimizer.__class__.__name__}")
+    print(f"\tbatch_size={optimizer.param_groups}")
+    print(f"\toptimizer_params={optimizer.param_groups}")
+    print(f"\trun_number={run_number}")
+    print(f"\tlearning_rate_factor={learning_rate_factor}")
+
+    MAX_EPOCHS = 20
+    seed = run_number
+
+    device = (
+        'mps' if torch.mps.is_available()
+        else 'cuda' if torch.cuda.is_available()
+        else 'xpu' if torch.xpu.is_available()
+        else 'cpu'
+    )
+
+    model = model.to(device)
+    print(f"Device used: {next(model.parameters()).device}")
+
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    run_prefix=f"MODEL={model.__class__.__name__}_BS={batch_size}_RUN={run_number}"
+    writer = SummaryWriter(comment=run_prefix)
+
+    criterion = nn.CrossEntropyLoss()
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=learning_rate_factor, patience=LR_PATIENCE)
+    early_stopping = EarlyStopping(patience=EARLY_STOPING_PATIENCE, delta=EARLY_STOPING_DELTA, verbose=True)
+
+    checkpoint_dir = 'checkpoints'
+    checkpoint_subdir = 'checkpoints/'+ run_prefix + '/'
+
+    if not os.path.exists(checkpoint_dir):
+        os.mkdir(checkpoint_dir)
+
+    if not os.path.exists(checkpoint_subdir):
+        os.mkdir(checkpoint_subdir)
+
+    trainloader, valloader, testloader = get_dataloaders(batch_size)
+
+    epochs_ran = 0
+    st = datetime.now()
+
+    for epoch in range(MAX_EPOCHS):
+        model = model.train()
+
+        epoch_train_loss = 0.
+        total = 0
+        correct = 0
+        for _, (waveforms, labels, _) in enumerate(tqdm(trainloader, desc=f"Epoch {epoch+1}/{MAX_EPOCHS}", unit="batch")):
+            if model.__class__.__name__ in [ASRModel.__name__, ASTModel.__name__]:
+                waveforms = waveforms.squeeze(1)
+
+            # Forward
+            waveforms = waveforms.to(device)
+            labels = labels.to(device)
+
+            output = model(waveforms)
+            optimizer.zero_grad()
+            loss = criterion(output, labels)
+
+            with torch.no_grad():
+                epoch_train_loss += loss
+
+                _, predicted = torch.max(output, 1)
+                correct += (predicted == labels).sum()
+                total += labels.size(0)
+
+            # Back Propragation
+            loss.backward()
+
+            # Update the weights/parameters
+            optimizer.step()
+
+        if epoch % 10 == 9:
+            print('Saving progress')
+            torch.save(model.state_dict(), checkpoint_dir + f"epochs_{epoch+1}.pt")
+
+        train_accuracy = correct / total
+
+        # Validation accuracy
+        model = model.eval()
+
+        total = 0
+        correct = 0
+        epoch_valid_loss = 0.
+
+        for _, (waveforms, labels, _) in enumerate(valloader):
+            waveforms = waveforms.to(device)
+            labels = labels.to(device)
+
+            with torch.no_grad():
+                outputs = model(waveforms)
+
+                _, predicted = torch.max(outputs, 1)
+                correct += (predicted == labels).sum()
+                total += labels.size(0)
+
+                epoch_valid_loss += criterion(outputs, labels)
+
+        val_accuracy = correct / total
+
+        av_epoch_train_loss = epoch_train_loss / total
+        av_epoch_valid_loss = epoch_valid_loss / total
+
+        epochs_ran += 1
+
+        print('Epoch {}: Train accuracy {:.6f}, Val accuracy {:.6f}, Train loss {:.8f}, Val loss {:.8f}'.format(epoch, train_accuracy, val_accuracy, av_epoch_train_loss, av_epoch_valid_loss))
+
+        writer.add_scalar("Loss/train", av_epoch_train_loss, epoch + 1)
+        writer.add_scalar("Loss/valid", av_epoch_valid_loss, epoch + 1)
+
+        writer.add_scalar("Accuracy/train", train_accuracy, epoch + 1)
+        writer.add_scalar("Accuracy/valid", val_accuracy, epoch + 1)
+
+        writer.add_scalar("Learning rate", scheduler.get_last_lr()[-1], epoch)
+
+        # Check early stopping condition
+        early_stopping.check_early_stop(av_epoch_valid_loss)
+
+        if early_stopping.stop_training:
+            print(f"Early stopping at epoch {epoch}")
+
+            if epoch % 10 != 9:
+                print('Saving progress')
+                torch.save(model.state_dict(), checkpoint_dir + f"epochs_{epoch+1}.pt")
+            break
+
+        scheduler.step(av_epoch_valid_loss)
+
+    writer.flush()
+
+    print(f"Training for {epochs_ran} epochs took {datetime.now() - st}")
+
+    # Evaluate metrics on test set
+    total = 0
+    correct = 0
+
+    model = model.eval()
+
+    for _, (waveforms, labels, _) in enumerate(testloader):
+        waveforms = waveforms.to(device)
+        labels = labels.to(device)
+
+        with torch.no_grad():
+            outputs = model(waveforms)
+
+            _, predicted = torch.max(outputs, 1)
+            correct += (predicted == labels).sum()
+            total += labels.size(0)
+
+    test_accuracy = float(correct) / total
+    print('Test accuracy {}'.format(test_accuracy))
+
+    with open(f"./{model.__class__.__name__}_test_metrics.txt", "a+") as f:
+        f.write(f"ACC={test_accuracy}, OPT={optimizer.__class__.__name__}, BATCH={batch_size}, RUN={run_number}, LR_FACTOR={learning_rate_factor}\n")
+
+
+if __name__ == '__main__':
+
+    num_classes = len(set(CLASS_NAMES_TO_IXS.values()))
+    model = resnet18(num_classes=num_classes, in_channels=1)
+    #model = ASRModel(num_classes=num_classes)
+    #model = ASTModel(label_dim=num_classes, model_size='tiny224')
+
+    optimizer = optim.Adam(params=model.parameters())
+
+    run_training_session(
+        model=model,
+        optimizer=optimizer,
+        batch_size=64,
+        run_number=1,
+        learning_rate_factor=0.1,
+    )
