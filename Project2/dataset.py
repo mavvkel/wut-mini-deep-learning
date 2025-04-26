@@ -16,12 +16,11 @@ source_folder = './dataset/train/audio/_background_noise_'
 target_base_folder = './dataset/train/audio'
 
 sample_rate = 16000  
-clip_duration = 1 
-overlap = 0.2  
+clip_duration = 1.0  
+stride_duration = 0.5  
 
 clip_samples = int(clip_duration * sample_rate)
-stride_samples = int((clip_duration - overlap) * sample_rate)
-
+stride_samples = int(stride_duration * sample_rate)
 
 def slice_and_save(filepath, target_folder):
     waveform, sr = torchaudio.load(filepath)
@@ -30,22 +29,24 @@ def slice_and_save(filepath, target_folder):
 
     filename = os.path.splitext(os.path.basename(filepath))[0]
     output_folder = os.path.join(target_base_folder, filename)
-
     os.makedirs(output_folder, exist_ok=True)
 
     total_samples = waveform.size(1)
+    idx = 0
     for start in range(0, total_samples - clip_samples + 1, stride_samples):
         end = start + clip_samples
         clip = waveform[:, start:end]
 
-        out_path = os.path.join(output_folder, f"{filename}_{start}.wav")
-        torchaudio.save(out_path, clip, sample_rate)
-
+        if clip.shape[1] == clip_samples:
+            out_path = os.path.join(output_folder, f"{filename}_{idx}.wav")
+            torchaudio.save(out_path, clip, sample_rate)
+            idx += 1
 
 for wav_file in os.listdir(source_folder):
     if wav_file.endswith('.wav'):
         filepath = os.path.join(source_folder, wav_file)
         slice_and_save(filepath, target_base_folder)
+
 
 
 
