@@ -93,12 +93,19 @@ UKNOWN_SUBCLASSES = [
     'wow',
 ]
 
+SILENCE_CLASSES = [
+    "doing_the_dishes",
+    "dude_miaowing",
+    "exercise_bike",
+    "pink_noise",
+    "running_tap",
+    "white_noise",
+]
+
 
 def preprocess_dataset():
     sets = ['train', 'valid', 'test']
     new_sample_rate = 8000
-    filename = 'dataset/train/audio/nine/012c8314_nohash_2.wav';
-
 
     # 1. Create processed dataset structure
     PREPROCESSED_DATASET_PATH = os.path.join(os.getcwd(), 'prep_dataset')
@@ -113,7 +120,7 @@ def preprocess_dataset():
     test_instances = 0
 
     # 2. Redistribute files based on subset
-    for class_name in CLASS_NAMES + UKNOWN_SUBCLASSES:
+    for class_name in CLASS_NAMES + UKNOWN_SUBCLASSES + SILENCE_CLASSES:
         class_source_path = os.path.join(os.getcwd(), f"dataset/train/audio/{class_name}/")
         fs = os.listdir(class_source_path)
 
