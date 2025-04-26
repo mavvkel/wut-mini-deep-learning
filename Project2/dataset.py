@@ -50,6 +50,7 @@ for wav_file in os.listdir(source_folder):
 
 
 UNKNOWN_CLASS_IX = 21
+SILENCE_CLASS_IX = 22
 
 CLASS_NAMES_TO_IXS = {
     "bed": UNKNOWN_CLASS_IX,
@@ -82,6 +83,12 @@ CLASS_NAMES_TO_IXS = {
     "wow": UNKNOWN_CLASS_IX,
     "yes": 19,
     "zero": 20,
+    "doing_the_dishes": SILENCE_CLASS_IX,
+    "dude_miaowing": SILENCE_CLASS_IX,
+    "exercise_bike": SILENCE_CLASS_IX,
+    "pink_noise": SILENCE_CLASS_IX,
+    "running_tap": SILENCE_CLASS_IX,
+    "white_noise": SILENCE_CLASS_IX
 }
 
 def load_audio_item(filepath: str, path: str) -> Tuple[Tensor, int, str, str]:
