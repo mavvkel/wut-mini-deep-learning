@@ -35,21 +35,14 @@ class_counts = Counter({
     16: 1206, 22: 550
 })
 
-
 total_samples = sum(class_counts.values())
-
 
 weights = {class_idx: total_samples / count for class_idx, count in class_counts.items()}
 
-# Normalizacja wag względem maksymalnej wagi (klasa 22 ma najmniej przykładów)
 max_weight = max(weights.values())
 normalized_weights = {class_idx: weight / max_weight for class_idx, weight in weights.items()}
 
-# Przekształcenie wag do tensora (aby mogły być użyte w CrossEntropyLoss)
 weight_tensor = torch.tensor([normalized_weights.get(i, 1.0) for i in range(23)])
-
-
-
 
 def run_training_session(
     model: ResNet | ASTModel | ASRModel,
