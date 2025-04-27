@@ -3,12 +3,10 @@ from datetime import datetime
 from tqdm import tqdm
 import torch
 import torch.nn as nn
-from early_stop import EarlyStopping
 
 from torch.utils.tensorboard.writer import SummaryWriter
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torcheval.metrics.functional import multiclass_accuracy, multiclass_f1_score, multiclass_auroc
 
 from ASR import ASRModel
 from AST import ASTModel
@@ -17,8 +15,6 @@ from resnet18 import ResNet, resnet18
 from collections import Counter
 
 NUM_CLASSES = len(set(CLASS_NAMES_TO_IXS.values()))
-EARLY_STOPING_PATIENCE = 5
-EARLY_STOPING_DELTA = 0.00001
 LR_PATIENCE = 3
 
 trainloader, valloader, testloader = get_dataloaders(32)
@@ -49,14 +45,13 @@ normalized_weights = {class_idx: weight / max_weight for class_idx, weight in we
 weight_tensor = torch.tensor([normalized_weights.get(i, 1.0) for i in range(23)])
 
 
-
-
 def run_training_session(
     model: ResNet | ASTModel | ASRModel,
     optimizer,
     batch_size: int,
     run_number: int,
     learning_rate_factor: float,
+    suffix: str,
 ):
     print(f"Running config:")
     print(f"\tmodel={model.__class__.__name__}")
@@ -64,6 +59,7 @@ def run_training_session(
     print(f"\tbatch_size={batch_size}")
     print(f"\trun_number={run_number}")
     print(f"\tlearning_rate_factor={learning_rate_factor}")
+    print(f"\tsuffix={suffix}")
 
     MAX_EPOCHS = 20
     seed = run_number
@@ -82,21 +78,16 @@ def run_training_session(
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
-    run_prefix=f"MODEL={model.__class__.__name__}_BS={batch_size}_RUN={run_number}"
+    run_prefix=f"__{model.__class__.__name__}__{optimizer.__class__.__name__}__{suffix}"
     writer = SummaryWriter(comment=run_prefix)
 
     criterion = nn.CrossEntropyLoss(weight=weight_tensor.to(device))
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=learning_rate_factor, patience=LR_PATIENCE)
-    early_stopping = EarlyStopping(patience=EARLY_STOPING_PATIENCE, delta=EARLY_STOPING_DELTA, verbose=True)
 
     checkpoint_dir = 'checkpoints'
-    checkpoint_subdir = 'checkpoints/'+ run_prefix + '/'
 
     if not os.path.exists(checkpoint_dir):
         os.mkdir(checkpoint_dir)
-
-    if not os.path.exists(checkpoint_subdir):
-        os.mkdir(checkpoint_subdir)
 
     trainloader, valloader, testloader = get_dataloaders(batch_size)
 
@@ -134,10 +125,6 @@ def run_training_session(
             # Update the weights/parameters
             optimizer.step()
 
-        if epoch % 10 == 9:
-            print('Saving progress')
-            torch.save(model.state_dict(), checkpoint_dir + f"epochs_{epoch+1}.pt")
-
         train_accuracy = correct / total
 
         # Validation accuracy
@@ -167,7 +154,7 @@ def run_training_session(
 
         epochs_ran += 1
 
-        print(f"Epoch {epoch}:")
+        print(f"Epoch {epoch+1}:")
         print(f"\tTrain: acc={train_accuracy:.6f}, loss={av_train_loss:.8f}")
         print(f"\tVal: acc={val_accuracy:.6f}, loss={av_valid_loss:.8f}")
 
@@ -177,24 +164,16 @@ def run_training_session(
         writer.add_scalar("Accuracy/train", train_accuracy, epoch + 1)
         writer.add_scalar("Accuracy/valid", val_accuracy, epoch + 1)
 
-        writer.add_scalar("Learning rate", scheduler.get_last_lr()[-1], epoch)
-
-        # Check early stopping condition
-        early_stopping.check_early_stop(av_valid_loss)
-
-        if early_stopping.stop_training:
-            print(f"Early stopping at epoch {epoch}")
-
-            if epoch % 10 != 9:
-                print('Saving progress')
-                torch.save(model.state_dict(), checkpoint_dir + f"epochs_{epoch+1}.pt")
-            break
+        writer.add_scalar("Learning rate", scheduler.get_last_lr()[-1], epoch+1)
 
         scheduler.step(av_valid_loss)
 
     writer.flush()
 
     print(f"Training for {epochs_ran} epochs took {datetime.now() - st}")
+
+    print('Saving progress')
+    torch.save(model.state_dict(), checkpoint_dir + f"/{run_prefix}.pt")
 
     # Evaluate metrics on test set
     model = model.eval()
@@ -219,22 +198,65 @@ def run_training_session(
     print(f"\tAccuracy={test_accuracy:.6f}")
 
     with open(f"./{model.__class__.__name__}_test_metrics.txt", "a+") as f:
-        f.write(f"ACC={test_accuracy}, OPT={optimizer.__class__.__name__}, BATCH={batch_size}, RUN={run_number}, LR_FACTOR={learning_rate_factor}\n")
+        f.write(f"ACC={test_accuracy}\t{run_prefix}\n")
 
 
 if __name__ == '__main__':
+    configs = [
+        # 1st row
+        # (32, 0.001, 0),
+        # (64, 0.001, 0),
+        #(128, 0.001, 0),
 
-    model = resnet18(num_classes=NUM_CLASSES, in_channels=1)
-    #model = ASRModel(num_classes=NUM_CLASSES)
-    #model = ASTModel(label_dim=NUM_CLASSES, model_size='tiny224')
+        #(32, 0.0005, 0),
+        #(64, 0.0005, 0),
+        #(128, 0.0005, 0),
 
-    optimizer = optim.Adam(params=model.parameters())
-    optimizer = optim.RMSprop(params=model.parameters())
+        #(32, 0.0001, 0),
+        #(64, 0.0001, 0),
+        #(128, 0.0001, 0),
 
-    run_training_session(
-        model=model,
-        optimizer=optimizer,
-        batch_size=64,
-        run_number=1,
-        learning_rate_factor=0.1,
-    )
+        ## 2nd row
+        #(32, 0.001, 0.0001),
+        #(64, 0.001, 0.0001),
+        #(128, 0.001, 0.0001),
+
+        #(32, 0.0005, 0.0001),
+        (64, 0.0005, 0.0001),
+        (128, 0.0005, 0.0001),
+
+        #(32, 0.0001, 0.0001),
+        #(64, 0.0001, 0.0001),
+        #(128, 0.0001, 0.0001),
+
+        ## 3rd row
+        #(32, 0.001, 0.001),
+        #(64, 0.001, 0.001),
+        #(128, 0.001, 0.001),
+
+        #(32, 0.0005, 0.001),
+        #(64, 0.0005, 0.001),
+        #(128, 0.0005, 0.001),
+
+        #(32, 0.0001, 0.001),
+        #(64, 0.0001, 0.001),
+        #(128, 0.0001, 0.001),
+    ]
+
+    for bs, lr, wd in configs:
+        model = resnet18(num_classes=NUM_CLASSES, in_channels=1)
+
+        optimizer = optim.Adam(
+            params=model.parameters(),
+            lr=lr,
+            weight_decay=wd,
+        )
+
+        run_training_session(
+            model=model,
+            optimizer=optimizer,
+            batch_size=bs,
+            run_number=1,
+            learning_rate_factor=0.1,
+            suffix=f"({bs},{lr},{wd})",
+        )
