@@ -14,13 +14,35 @@ from ASR import ASRModel
 from AST import ASTModel
 from dataset import CLASS_NAMES_TO_IXS, get_dataloaders
 from resnet18 import ResNet, resnet18
-
+from collections import Counter
 
 NUM_CLASSES = len(set(CLASS_NAMES_TO_IXS.values()))
 EARLY_STOPING_PATIENCE = 5
 EARLY_STOPING_DELTA = 0.00001
 LR_PATIENCE = 3
 
+trainloader, valloader, testloader = get_dataloaders(32)
+
+counts = Counter()
+for _, _, labels, _ in trainloader.dataset:
+    counts[labels] += 1
+
+
+class_counts = Counter({
+    21: 11068, 10: 1685, 13: 1674, 14: 1672, 7: 1669, 17: 1669, 9: 1661, 
+    12: 1650, 6: 1649, 20: 1649, 4: 1646, 1: 1644, 18: 1635, 19: 1635, 
+    8: 1631, 0: 1626, 11: 1626, 2: 1624, 3: 1623, 5: 1623, 15: 1621, 
+    16: 1206, 22: 550
+})
+
+total_samples = sum(class_counts.values())
+
+weights = {class_idx: total_samples / count for class_idx, count in class_counts.items()}
+
+max_weight = max(weights.values())
+normalized_weights = {class_idx: weight / max_weight for class_idx, weight in weights.items()}
+
+weight_tensor = torch.tensor([normalized_weights.get(i, 1.0) for i in range(23)])
 
 def run_training_session(
     model: ResNet | ASTModel | ASRModel,
@@ -56,7 +78,7 @@ def run_training_session(
     run_prefix=f"MODEL={model.__class__.__name__}_BS={batch_size}_RUN={run_number}"
     writer = SummaryWriter(comment=run_prefix)
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(weight=weight_tensor.to(device))
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=learning_rate_factor, patience=LR_PATIENCE)
     early_stopping = EarlyStopping(patience=EARLY_STOPING_PATIENCE, delta=EARLY_STOPING_DELTA, verbose=True)
 
