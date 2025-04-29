@@ -17,33 +17,25 @@ from collections import Counter
 NUM_CLASSES = len(set(CLASS_NAMES_TO_IXS.values()))
 LR_PATIENCE = 3
 
-trainloader, valloader, testloader = get_dataloaders(32)
+def calc_weights():
+    #trainloader, _, _ = get_dataloaders(32)
 
-counts = Counter()
-for _, _, labels, _ in trainloader.dataset:
-    counts[labels] += 1
+    #counts = Counter()
+    #for _, _, labels, _ in trainloader.dataset:
+    #    counts[labels] += 1
 
+    class_counts = Counter({
+        1: 34118, 2:11068, 0: 325
+    })
 
-class_counts = Counter({
-    21: 11068, 10: 1685, 13: 1674, 14: 1672, 7: 1669, 17: 1669, 9: 1661, 
-    12: 1650, 6: 1649, 20: 1649, 4: 1646, 1: 1644, 18: 1635, 19: 1635, 
-    8: 1631, 0: 1626, 11: 1626, 2: 1624, 3: 1623, 5: 1623, 15: 1621, 
-    16: 1206, 22: 550
-})
+    total_samples = 34118 + 11068 + 325
 
+    weights = {class_idx: total_samples / count for class_idx, count in class_counts.items()}
 
-total_samples = sum(class_counts.values())
+    max_weight = max(weights.values())
+    normalized_weights = {class_idx: weight / max_weight for class_idx, weight in weights.items()}
 
-
-weights = {class_idx: total_samples / count for class_idx, count in class_counts.items()}
-
-# Normalizacja wag względem maksymalnej wagi (klasa 22 ma najmniej przykładów)
-max_weight = max(weights.values())
-normalized_weights = {class_idx: weight / max_weight for class_idx, weight in weights.items()}
-
-# Przekształcenie wag do tensora (aby mogły być użyte w CrossEntropyLoss)
-weight_tensor = torch.tensor([normalized_weights.get(i, 1.0) for i in range(23)])
-
+    return torch.tensor([normalized_weights.get(i, 1.0) for i in range(3)])
 
 def run_training_session(
     model: ResNet | ASTModel | ASRModel,
@@ -81,7 +73,8 @@ def run_training_session(
     run_prefix=f"__{model.__class__.__name__}__{optimizer.__class__.__name__}__{suffix}"
     writer = SummaryWriter(comment=run_prefix)
 
-    criterion = nn.CrossEntropyLoss(weight=weight_tensor.to(device))
+    #weight_tensor = calc_weights()
+    criterion = nn.CrossEntropyLoss()#weight=weight_tensor.to(device))
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=learning_rate_factor, patience=LR_PATIENCE)
 
     checkpoint_dir = 'checkpoints'
@@ -100,7 +93,8 @@ def run_training_session(
         epoch_train_loss = 0.
         total = 0
         correct = 0
-        for _, (waveforms, labels, _) in enumerate(tqdm(trainloader, desc=f"Epoch {epoch+1}/{MAX_EPOCHS}", unit="batch")):
+        for i, (waveforms, labels, _) in enumerate(tqdm(trainloader, desc=f"Epoch {epoch+1}/{MAX_EPOCHS}", unit="batch")):
+
             if model.__class__.__name__ in [ASRModel.__name__, ASTModel.__name__]:
                 waveforms = waveforms.squeeze(1)
 
@@ -135,6 +129,9 @@ def run_training_session(
         epoch_valid_loss = 0.
 
         for _, (waveforms, labels, _) in enumerate(valloader):
+            if model.__class__.__name__ in [ASRModel.__name__, ASTModel.__name__]:
+                waveforms = waveforms.squeeze(1)
+
             waveforms = waveforms.to(device)
             labels = labels.to(device)
 
@@ -182,6 +179,9 @@ def run_training_session(
     correct = 0
 
     for _, (waveforms, labels, _) in enumerate(testloader):
+        if model.__class__.__name__ in [ASRModel.__name__, ASTModel.__name__]:
+            waveforms = waveforms.squeeze(1)
+
         waveforms = waveforms.to(device)
         labels = labels.to(device)
 
@@ -204,48 +204,59 @@ def run_training_session(
 if __name__ == '__main__':
     configs = [
         # 1st row
-        # (32, 0.001, 0),
-        # (64, 0.001, 0),
-        #(128, 0.001, 0),
+        (32, 0.001, 0),
+        (64, 0.001, 0),
+        (128, 0.001, 0),
 
-        #(32, 0.0005, 0),
-        #(64, 0.0005, 0),
-        #(128, 0.0005, 0),
+        (32, 0.0005, 0),
+        (64, 0.0005, 0),
+        (128, 0.0005, 0),
 
-        #(32, 0.0001, 0),
-        #(64, 0.0001, 0),
-        #(128, 0.0001, 0),
+        (32, 0.0001, 0),
+        (64, 0.0001, 0),
+        (128, 0.0001, 0),
 
         ## 2nd row
-        #(32, 0.001, 0.0001),
-        #(64, 0.001, 0.0001),
-        #(128, 0.001, 0.0001),
+        (32, 0.001, 0.0001),
+        (64, 0.001, 0.0001),
+        (128, 0.001, 0.0001),
 
-        #(32, 0.0005, 0.0001),
+        (32, 0.0005, 0.0001),
         (64, 0.0005, 0.0001),
         (128, 0.0005, 0.0001),
 
-        #(32, 0.0001, 0.0001),
-        #(64, 0.0001, 0.0001),
-        #(128, 0.0001, 0.0001),
+        (32, 0.0001, 0.0001),
+        (64, 0.0001, 0.0001),
+        (128, 0.0001, 0.0001),
 
         ## 3rd row
-        #(32, 0.001, 0.001),
-        #(64, 0.001, 0.001),
-        #(128, 0.001, 0.001),
+        (32, 0.001, 0.001),
+        (64, 0.001, 0.001),
+        (128, 0.001, 0.001),
 
-        #(32, 0.0005, 0.001),
-        #(64, 0.0005, 0.001),
-        #(128, 0.0005, 0.001),
+        (32, 0.0005, 0.001),
+        (64, 0.0005, 0.001),
+        (128, 0.0005, 0.001),
 
-        #(32, 0.0001, 0.001),
+        (32, 0.0001, 0.001),
+        (64, 0.0001, 0.001),
+        (128, 0.0001, 0.001),
+
+        # Additional
+
+        # Large LR
+        #(32, 0.01, 0),
+
+        #(32, 0.0001, 0.0001),
         #(64, 0.0001, 0.001),
         #(128, 0.0001, 0.001),
     ]
 
-    for bs, lr, wd in configs:
-        model = resnet18(num_classes=NUM_CLASSES, in_channels=1)
+    NUM_CLASSES_2 = 3
 
+    for bs, lr, wd in configs:
+        #model = resnet18(num_classes=NUM_CLASSES, in_channels=1)
+        model = ASTModel(label_dim=NUM_CLASSES_2, model_size='tiny224')
         optimizer = optim.Adam(
             params=model.parameters(),
             lr=lr,
@@ -258,5 +269,5 @@ if __name__ == '__main__':
             batch_size=bs,
             run_number=1,
             learning_rate_factor=0.1,
-            suffix=f"({bs},{lr},{wd})",
+            suffix=f"__3_CLASS__({bs},{lr},{wd})",
         )
