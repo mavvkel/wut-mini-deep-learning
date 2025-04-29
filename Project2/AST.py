@@ -23,7 +23,7 @@ class PatchEmbed(nn.Module):
 class ASTModel(nn.Module):
     def __init__(
         self,
-        label_dim=22,
+        label_dim=23,
         fstride=16,
         tstride=16,
         input_fdim=201,
