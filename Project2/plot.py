@@ -29,6 +29,16 @@ UNKNOWN_SUBCLASSES = [
     'tree',
     'wow',
 ]
+SILENCE_CLASSES = [
+    "doing_the_dishes", "dude_miaowing", "exercise_bike", "pink_noise", "running_tap", "white_noise",
+]
+
+silence_total = 0
+for name in SILENCE_CLASSES:
+    silence_total += class_counts[name]
+    del class_counts[name]
+
+class_counts['silence'] = silence_total
 
 colors = [
     'tab:blue' if name not in UNKNOWN_SUBCLASSES
@@ -40,8 +50,8 @@ fig, ax = plt.subplots(figsize=(12, 8))
 
 ax.bar(list(class_counts.keys()), list(class_counts.values()), color=colors)
 
-ax.set_ylabel('Number of distances')
-ax.set_title('Class distribution of Speech Command Dataset with generated $silence$ class')
-ax.tick_params(axis='x', labelrotation=45, labelsize=8)
+ax.set_ylabel('Number of distances', fontsize=18)
+ax.set_title('Class distribution of Speech Command Dataset with generated $silence$ class', fontsize=18, pad=20)
+ax.tick_params(axis='x', labelrotation=45, labelsize=10)
 
 plt.show()

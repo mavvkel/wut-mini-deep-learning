@@ -1,5 +1,6 @@
 import os
 import torch
+from random import sample, shuffle
 from typing import Tuple
 
 from pathlib import Path
@@ -42,10 +43,10 @@ def slice_and_save(filepath, target_folder):
             torchaudio.save(out_path, clip, sample_rate)
             idx += 1
 
-for wav_file in os.listdir(source_folder):
-    if wav_file.endswith('.wav'):
-        filepath = os.path.join(source_folder, wav_file)
-        slice_and_save(filepath, target_base_folder)
+# for wav_file in os.listdir(source_folder):
+#     if wav_file.endswith('.wav'):
+#         filepath = os.path.join(source_folder, wav_file)
+#         slice_and_save(filepath, target_base_folder)
 
 
 
@@ -92,6 +93,50 @@ CLASS_NAMES_TO_IXS = {
     "white_noise": SILENCE_CLASS_IX
 }
 
+
+SILENCE_CLASS_IX_2 = 0
+COMMAND_CLASS_IX_2 = 1
+UNKNOWN_CLASS_IX_2 = 2
+
+CLASS_NAMES_TO_IXS_2 = {
+    "bed": UNKNOWN_CLASS_IX_2,
+    "bird": UNKNOWN_CLASS_IX_2,
+    "cat": UNKNOWN_CLASS_IX_2,
+    "dog": UNKNOWN_CLASS_IX_2,
+    "down": COMMAND_CLASS_IX_2,
+    "eight": COMMAND_CLASS_IX_2,
+    "five": COMMAND_CLASS_IX_2,
+    "four": COMMAND_CLASS_IX_2,
+    "go": COMMAND_CLASS_IX_2,
+    "happy": UNKNOWN_CLASS_IX_2,
+    "house": UNKNOWN_CLASS_IX_2,
+    "left": COMMAND_CLASS_IX_2,
+    "marvin": UNKNOWN_CLASS_IX_2,
+    "nine": COMMAND_CLASS_IX_2,
+    "no": COMMAND_CLASS_IX_2,
+    "off": COMMAND_CLASS_IX_2,
+    "on": COMMAND_CLASS_IX_2,
+    "one": COMMAND_CLASS_IX_2,
+    "right": COMMAND_CLASS_IX_2,
+    "seven": COMMAND_CLASS_IX_2,
+    "sheila": UNKNOWN_CLASS_IX_2,
+    "six": COMMAND_CLASS_IX_2,
+    "stop": COMMAND_CLASS_IX_2,
+    "three": COMMAND_CLASS_IX_2,
+    "tree": COMMAND_CLASS_IX_2,
+    "two": COMMAND_CLASS_IX_2,
+    "up": COMMAND_CLASS_IX_2,
+    "wow": UNKNOWN_CLASS_IX_2,
+    "yes": COMMAND_CLASS_IX_2,
+    "zero": COMMAND_CLASS_IX_2,
+    "doing_the_dishes": SILENCE_CLASS_IX_2,
+    "dude_miaowing": SILENCE_CLASS_IX_2,
+    "exercise_bike": SILENCE_CLASS_IX_2,
+    "pink_noise": SILENCE_CLASS_IX_2,
+    "running_tap": SILENCE_CLASS_IX_2,
+    "white_noise": SILENCE_CLASS_IX_2
+}
+
 def load_audio_item(filepath: str, path: str) -> Tuple[Tensor, int, str, str]:
     relpath = os.path.relpath(filepath, path)
     label, filename = os.path.split(relpath)
@@ -99,6 +144,29 @@ def load_audio_item(filepath: str, path: str) -> Tuple[Tensor, int, str, str]:
     waveform, sample_rate = torchaudio.load(filepath)
     return waveform, sample_rate, label, filename
 
+def filter_paths(paths: list[str], path: str) -> list[str]:
+    command_paths = []
+    unknown_paths = []
+    silence_paths = []
+    for class_name, label_ix in CLASS_NAMES_TO_IXS_2.items():
+        c_path = os.path.join(path, class_name)[2:]
+        if label_ix == COMMAND_CLASS_IX_2:
+            class_paths = list(filter(lambda p: p.startswith(c_path), paths))
+            command_paths.extend(class_paths)
+        elif label_ix == UNKNOWN_CLASS_IX_2:
+            class_paths = list(filter(lambda p: p.startswith(c_path), paths))
+            unknown_paths.extend(class_paths)
+        elif label_ix == SILENCE_CLASS_IX_2:
+            class_paths = list(filter(lambda p: p.startswith(c_path), paths))
+            silence_paths.extend(class_paths)
+
+    command_paths = sample(command_paths, len(silence_paths))
+    unknown_paths = sample(unknown_paths, len(silence_paths))
+
+    filtered = silence_paths + command_paths + unknown_paths
+    shuffle(filtered)
+
+    return filtered
 
 class AudioFolder(Dataset):
     """Create a Dataset from Local Files.
@@ -118,6 +186,7 @@ class AudioFolder(Dataset):
             pattern: str = "*/*",
             new_sample_rate: int | None = None,
             spectrogram_transform: bool = False,
+            subset: bool = False,
         ):
 
         self._path = path
@@ -125,6 +194,8 @@ class AudioFolder(Dataset):
         self._new_sample_rate = new_sample_rate
 
         walker = sorted(str(p) for p in Path(self._path).glob(f'{pattern}{suffix}'))
+        if subset:
+            walker = filter_paths(walker, path)
         self._walker = list(walker)
 
     def __getitem__(self, n: int) -> Tuple[Tensor, int, int, str]:
@@ -173,7 +244,7 @@ def get_dataloaders(batch_size: int) -> tuple[DataLoader, DataLoader, DataLoader
     SPEECH_COMMANDS_DIRECTORY = './prep_dataset'
 
     trainloader = DataLoader(
-        AudioFolder(SPEECH_COMMANDS_DIRECTORY + '/train'),
+        AudioFolder(SPEECH_COMMANDS_DIRECTORY + '/train', subset=False),
         batch_size=batch_size,
         shuffle=True,
         collate_fn=collate_fn,

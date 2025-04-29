@@ -2,9 +2,7 @@ import os
 import re
 import hashlib
 
-import numpy as np
-from scipy import signal
-from scipy.io import wavfile
+import torchaudio
 
 MAX_NUM_WAVS_PER_CLASS = 2**27 - 1  
 

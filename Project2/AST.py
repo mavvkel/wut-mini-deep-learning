@@ -24,8 +24,8 @@ class ASTModel(nn.Module):
     def __init__(
         self,
         label_dim=22,
-        fstride=10,
-        tstride=10,
+        fstride=16,
+        tstride=16,
         input_fdim=201,
         input_tdim=41,
         model_size='base384'
@@ -34,7 +34,7 @@ class ASTModel(nn.Module):
 
         if model_size == 'base384':
             self.embed_dim = 768
-            depth = 12
+            depth = 6
             num_heads = 12
         elif model_size == 'small224':
             self.embed_dim = 384
@@ -42,7 +42,7 @@ class ASTModel(nn.Module):
             num_heads = 6
         elif model_size == 'tiny224':
             self.embed_dim = 192
-            depth = 12
+            depth = 6
             num_heads = 3
         else:
             raise ValueError("Unsupported model size.")

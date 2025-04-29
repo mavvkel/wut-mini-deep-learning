@@ -1,3 +1,4 @@
+import torchaudio
 from dataset import get_dataloaders
 
 
@@ -29,5 +30,9 @@ def test_get_dataloaders():
 
 if __name__ == '__main__':
     print('TESTS: ', end=None)
-    test_get_dataloaders()
+    #test_get_dataloaders()
     print('.', end=None)
+
+    waveform, sr = torchaudio.load('./prep_dataset_no_silence/train/cat/0ac15fe9_nohash_0.wav')
+    waveform2, sr2 = torchaudio.load('./prep_dataset/train/cat/0ac15fe9_nohash_0.wav')
+    print()

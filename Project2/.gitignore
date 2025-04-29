@@ -3,3 +3,4 @@ dl-p2
 *.txt
 
 runs/*
+checkpoints/*
